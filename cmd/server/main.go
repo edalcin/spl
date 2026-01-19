@@ -26,10 +26,31 @@ var (
 	sessions sync.Map // Thread-safe map for sessions [token]expiryTime
 )
 
-// ... types ...
+type List struct {
+	ID   int
+	Name string
+}
+
+type Item struct {
+	ID        int
+	ListID    int
+	Name      string
+	Completed bool
+}
+
+type PageData struct {
+	Lists       []List
+	CurrentList List
+	Items       []Item
+	ShowManager bool
+}
 
 func main() {
-	// ... (db setup) ...
+	// Configuração do banco de dados
+	dbPath := os.Getenv("DB_PATH")
+	if dbPath == "" {
+		dbPath = "./shopping.db"
+	}
 
 	// Configuração do PIN
 	appPIN = os.Getenv("APP_PIN")
