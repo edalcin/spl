@@ -15,8 +15,8 @@
         .sidebar-list a:hover:not(.active) { background-color: var(--secondary-focus); }
         
         .header-actions { display: flex; align-items: center; gap: 1rem; justify-content: space-between; margin-bottom: 1rem; }
-        .list-title-form { display: flex; gap: 0.5rem; align-items: center; width: 100%; }
-        
+        .sidebar-footer { margin-top: 2rem; border-top: 1px solid var(--muted-border); padding-top: 1rem; }
+
         /* Mobile adjustments */
         @media (max-width: 768px) {
             .grid { display: block; }
@@ -28,7 +28,7 @@
     <main class="container-fluid">
         <div class="grid" style="grid-template-columns: 250px 1fr; align-items: start;">
             
-            <!-- Sidebar: Navegação de Listas -->
+            <!-- Sidebar: Navegação -->
             <aside>
                 <hgroup>
                     <h3>Minhas Listas</h3>
@@ -36,75 +36,101 @@
                 <ul class="sidebar-list">
                     {{ range .Lists }}
                     <li>
-                        <a href="/list/{{.ID}}" class="{{ if eq .ID $.CurrentList.ID }}active{{ end }}">
+                        <a href="/list/{{.ID}}" class="{{ if and (not $.ShowManager) (eq .ID $.CurrentList.ID) }}active{{ end }}">
                             {{ .Name }}
                         </a>
                     </li>
                     {{ end }}
                 </ul>
 
-                <hr>
-                
-                <!-- Criar Nova Lista -->
-                <form action="/lists/add" method="POST">
-                    <label for="new-list">Nova Lista</label>
-                    <div style="display: flex; gap: 0.5rem;">
-                        <input type="text" id="new-list" name="name" placeholder="Ex: Farmácia" required>
-                        <button type="submit" class="outline">+</button>
-                    </div>
-                </form>
+                <div class="sidebar-footer">
+                    <a href="/manage" role="button" class="outline contrast {{ if .ShowManager }}primary{{ end }}" style="width: 100%;">
+                        ⚙️ Gerenciar Listas
+                    </a>
+                </div>
             </aside>
 
-            <!-- Conteúdo Principal: Itens da Lista -->
+            <!-- Conteúdo Principal -->
             <section>
-                {{ if .CurrentList.ID }}
-                
-                <!-- Cabeçalho da Lista (Edição e Exclusão) -->
-                <header class="header-actions">
-                    <!-- Título e Form de Edição (Toggle via details/summary abuse or JS) -->
-                    <div style="flex-grow: 1;">
-                        <details>
-                            <summary role="button" class="secondary outline" style="border: none; padding: 0; background: none; color: var(--h1-color); font-size: 1.5em; font-weight: bold;">
-                                {{ .CurrentList.Name }} ✎
-                            </summary>
-                            <form action="/lists/edit/{{ .CurrentList.ID }}" method="POST" class="list-title-form" style="margin-top: 10px;">
-                                <input type="text" name="name" value="{{ .CurrentList.Name }}" required>
-                                <button type="submit">Salvar</button>
-                            </form>
-                        </details>
-                    </div>
+                {{ if .ShowManager }}
+                    <!-- Tela de Gestão de Listas -->
+                    <hgroup>
+                        <h1>Gerenciar Listas</h1>
+                        <h2>Crie, renomeie ou exclua suas listas</h2>
+                    </hgroup>
 
-                    <!-- Botão de Excluir Lista -->
-                    <form action="/lists/delete/{{ .CurrentList.ID }}" method="POST" onsubmit="return confirm('Tem certeza que deseja apagar esta lista e todos os itens?');">
-                        <button type="submit" class="contrast outline" style="width: auto;">Apagar Lista</button>
-                    </form>
-                </header>
+                    <!-- Criar Nova Lista -->
+                    <article>
+                        <form action="/lists/add" method="POST">
+                            <label for="new-list"><strong>Criar Nova Lista</strong></label>
+                            <div class="grid">
+                                <input type="text" id="new-list" name="name" placeholder="Ex: Mercado, Farmácia..." required>
+                                <button type="submit">Criar Lista</button>
+                            </div>
+                        </form>
+                    </article>
 
-                <!-- Formulário de Adicionar Item -->
-                <form hx-post="/items/add" hx-target="#items-container" hx-on::after-request="this.reset()">
-                    <input type="hidden" name="list_id" value="{{ .CurrentList.ID }}">
-                    <div class="grid">
-                        <input type="text" name="name" placeholder="Adicionar item em {{ .CurrentList.Name }}..." required autofocus>
-                        <button type="submit">Adicionar</button>
-                    </div>
-                </form>
-
-                <!-- Lista de Itens -->
-                <div id="items-container">
-                    {{ template "items-partial" . }}
-                </div>
+                    <!-- Lista de Listas Existentes -->
+                    <table role="grid">
+                        <thead>
+                            <tr>
+                                <th>Nome da Lista</th>
+                                <th style="width: 150px;">Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {{ range .Lists }}
+                            <tr>
+                                <td>
+                                    <form action="/lists/edit/{{.ID}}" method="POST" style="margin-bottom: 0;">
+                                        <div class="grid" style="grid-template-columns: 1fr auto;">
+                                            <input type="text" name="name" value="{{.Name}}" required style="margin-bottom: 0;">
+                                            <button type="submit" class="outline secondary" style="margin-bottom: 0; padding: 0.2rem 0.5rem;">Salvar</button>
+                                        </div>
+                                    </form>
+                                </td>
+                                <td>
+                                    <form action="/lists/delete/{{.ID}}" method="POST" style="margin-bottom: 0;" onsubmit="return confirm('Tem certeza? Isso apagará todos os itens desta lista.');">
+                                        <button type="submit" class="outline contrast" style="margin-bottom: 0; padding: 0.2rem 0.5rem; width: 100%;">Excluir</button>
+                                    </form>
+                                </td>
+                            </tr>
+                            {{ end }}
+                        </tbody>
+                    </table>
 
                 {{ else }}
-                <article>
-                    <h3>Bem-vindo!</h3>
-                    <p>Selecione uma lista ao lado ou crie uma nova para começar.</p>
-                </article>
+                    <!-- Tela da Lista de Compras Atual -->
+                    {{ if .CurrentList.ID }}
+                        <header class="header-actions">
+                            <h1 style="margin: 0;">{{ .CurrentList.Name }}</h1>
+                        </header>
+
+                        <!-- Formulário de Adicionar Item -->
+                        <form hx-post="/items/add" hx-target="#items-container" hx-on::after-request="this.reset()">
+                            <input type="hidden" name="list_id" value="{{ .CurrentList.ID }}">
+                            <div class="grid">
+                                <input type="text" name="name" placeholder="O que precisamos comprar?" required autofocus>
+                                <button type="submit">Adicionar</button>
+                            </div>
+                        </form>
+
+                        <!-- Lista de Itens -->
+                        <div id="items-container">
+                            {{ template "items-partial" . }}
+                        </div>
+                    {{ else }}
+                        <article>
+                            <h3>Nenhuma lista selecionada</h3>
+                            <p>Selecione uma lista no menu ou vá em "Gerenciar Listas" para criar uma.</p>
+                        </article>
+                    {{ end }}
                 {{ end }}
             </section>
         </div>
     </main>
 
-    <!-- Template Parcial de Itens (para HTMX) -->
+    <!-- Template Parcial de Itens -->
     {{ define "items-partial" }}
         {{ range .Items }}
         <div class="grid" style="grid-template-columns: 1fr auto; align-items: center; border-bottom: 1px solid var(--muted-border); padding: 0.5rem 0;">
@@ -122,7 +148,7 @@
             </button>
         </div>
         {{ else }}
-        <p style="text-align: center; color: #888; margin-top: 2rem;">Nenhum item nesta lista.</p>
+        <p style="text-align: center; color: #888; margin-top: 2rem;">Lista vazia! 🎉</p>
         {{ end }}
     {{ end }}
 </body>
