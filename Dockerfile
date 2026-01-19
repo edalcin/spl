@@ -10,14 +10,13 @@ COPY go.mod ./
 COPY . .
 
 # Instala git (necessário para algumas dependências) e ajusta dependências
-# Rodamos o tidy AQUI para garantir que o go.mod final esteja correto
-# e não seja sobrescrito pelo COPY
-RUN apk add --no-cache git && go mod tidy
+# Adicionando gcc e musl-dev para garantir compatibilidade de build
+RUN apk add --no-cache git gcc musl-dev && go mod tidy
 
 # Compila a aplicação
 # CGO_ENABLED=0 garante um binário estático
 # -ldflags="-s -w" remove informações de debug para reduzir o tamanho
-RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o server cmd/server/main.go
+RUN CGO_ENABLED=0 GOOS=linux go build -v -ldflags="-s -w" -o server cmd/server/main.go
 
 # Estágio Final
 FROM alpine:latest
