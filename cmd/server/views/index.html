@@ -63,9 +63,9 @@
                     <article>
                         <form action="/lists/add" method="POST">
                             <label for="new-list"><strong>Criar Nova Lista</strong></label>
-                            <div class="grid">
+                            <div class="grid" style="grid-template-columns: 1fr auto;">
                                 <input type="text" id="new-list" name="name" placeholder="Ex: Mercado, Farmácia..." required>
-                                <button type="submit">Criar Lista</button>
+                                <button type="submit" style="width: auto;">Criar Lista</button>
                             </div>
                         </form>
                     </article>
@@ -109,9 +109,9 @@
                         <!-- Formulário de Adicionar Item -->
                         <form hx-post="/items/add" hx-target="#items-container" hx-on::after-request="this.reset()">
                             <input type="hidden" name="list_id" value="{{ .CurrentList.ID }}">
-                            <div class="grid">
+                            <div class="grid" style="grid-template-columns: 1fr auto;">
                                 <input type="text" name="name" placeholder="O que precisamos comprar?" required autofocus>
-                                <button type="submit">Adicionar</button>
+                                <button type="submit" style="width: auto; padding: 0.5rem 1rem;">Adicionar</button>
                             </div>
                         </form>
 
