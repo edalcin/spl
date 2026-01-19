@@ -17,7 +17,7 @@ import (
 	_ "modernc.org/sqlite"
 )
 
-//go:embed views/* static/*
+//go:embed views static
 var views embed.FS
 
 var (
