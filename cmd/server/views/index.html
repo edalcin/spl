@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lista de Compras</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@1/css/pico.min.css">
+    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+    <style>
+        .completed { text-decoration: line-through; color: #888; }
+        .container { max-width: 600px; margin-top: 2rem; }
+        .item-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.5rem; }
+        .item-name { flex-grow: 1; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <main class="container">
+        <hgroup>
+            <h1>Lista de Compras</h1>
+            <h2>Simples e eficiente</h2>
+        </hgroup>
+
+        <!-- Formulário de Adição -->
+        <form hx-post="/add" hx-target="#list" hx-on::after-request="this.reset()">
+            <div class="grid">
+                <input type="text" name="name" placeholder="O que precisamos comprar?" required>
+                <button type="submit">Adicionar</button>
+            </div>
+        </form>
+
+        <!-- Lista de Itens -->
+        <article>
+            <div id="list">
+                {{ template "item-list" .Items }}
+            </div>
+        </article>
+    </main>
+
+    <!-- Template para a Lista (Reutilizado pelo HTMX) -->
+    {{ define "item-list" }}
+        {{ range . }}
+        <div class="item-row">
+            <span class="item-name {{ if .Completed }}completed{{ end }}"
+                  hx-post="/toggle/{{ .ID }}"
+                  hx-target="#list">
+                {{ .Name }}
+            </span>
+            <button class="outline secondary" 
+                    hx-delete="/delete/{{ .ID }}" 
+                    hx-target="#list"
+                    style="width: auto; padding: 0.2rem 0.5rem; font-size: 0.8rem;">
+                ✕
+            </button>
+        </div>
+        {{ else }}
+        <p style="text-align: center; color: #888;">Sua lista está vazia! 🎉</p>
+        {{ end }}
+    {{ end }}
+</body>
+</html>
