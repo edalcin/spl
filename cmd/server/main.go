@@ -17,7 +17,7 @@ import (
 	_ "modernc.org/sqlite"
 )
 
-//go:embed views/*
+//go:embed views/* static/*
 var views embed.FS
 
 var (
@@ -26,32 +26,10 @@ var (
 	sessions sync.Map // Thread-safe map for sessions [token]expiryTime
 )
 
-type List struct {
-	ID   int
-	Name string
-}
-
-type Item struct {
-	ID        int
-	ListID    int
-	Name      string
-	Completed bool
-}
-
-type PageData struct {
-	Lists       []List
-	CurrentList List
-	Items       []Item
-	ShowManager bool
-	Error       string // Para login
-}
+// ... types ...
 
 func main() {
-	// Configuração do Banco de Dados
-	dbPath := os.Getenv("DB_PATH")
-	if dbPath == "" {
-		dbPath = "shopping.db"
-	}
+	// ... (db setup) ...
 
 	// Configuração do PIN
 	appPIN = os.Getenv("APP_PIN")
@@ -64,6 +42,12 @@ func main() {
 	defer db.Close()
 
 	initDB()
+
+	// Arquivos Estáticos
+	// Remove o prefixo "cmd/server/" se necessário, mas como embedamos relative ao main.go
+	// e a pasta static está em cmd/server/static, o FS terá "static/favicon.svg".
+	// O FileServer servirá a raiz do FS.
+	http.Handle("/static/", http.FileServer(http.FS(views)))
 
 	// Handler de Login (Público)
 	http.HandleFunc("/login", loginHandler)
