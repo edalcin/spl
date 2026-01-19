@@ -16,7 +16,7 @@ RUN apk add --no-cache git gcc musl-dev && go mod tidy
 # Compila a aplicação
 # CGO_ENABLED=0 garante um binário estático
 # -ldflags="-s -w" remove informações de debug para reduzir o tamanho
-RUN CGO_ENABLED=0 GOOS=linux go build -v -ldflags="-s -w" -o server cmd/server/main.go
+RUN CGO_ENABLED=0 GOOS=linux go build -v -ldflags="-s -w" -o server ./cmd/server
 
 # Estágio Final
 FROM alpine:latest
