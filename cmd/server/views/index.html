@@ -8,52 +8,121 @@
     <script src="https://unpkg.com/htmx.org@1.9.10"></script>
     <style>
         .completed { text-decoration: line-through; color: #888; }
-        .container { max-width: 600px; margin-top: 2rem; }
-        .item-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.5rem; }
-        .item-name { flex-grow: 1; cursor: pointer; }
+        .sidebar-list { list-style: none; padding: 0; }
+        .sidebar-list li { margin-bottom: 0.5rem; }
+        .sidebar-list a { display: block; padding: 0.5rem; border-radius: 4px; text-decoration: none; }
+        .sidebar-list a.active { background-color: var(--primary); color: var(--primary-inverse); }
+        .sidebar-list a:hover:not(.active) { background-color: var(--secondary-focus); }
+        
+        .header-actions { display: flex; align-items: center; gap: 1rem; justify-content: space-between; margin-bottom: 1rem; }
+        .list-title-form { display: flex; gap: 0.5rem; align-items: center; width: 100%; }
+        
+        /* Mobile adjustments */
+        @media (max-width: 768px) {
+            .grid { display: block; }
+            aside { margin-bottom: 2rem; border-bottom: 1px solid var(--muted-border); padding-bottom: 1rem; }
+        }
     </style>
 </head>
 <body>
-    <main class="container">
-        <hgroup>
-            <h1>Lista de Compras</h1>
-            <h2>Simples e eficiente</h2>
-        </hgroup>
+    <main class="container-fluid">
+        <div class="grid" style="grid-template-columns: 250px 1fr; align-items: start;">
+            
+            <!-- Sidebar: Navegação de Listas -->
+            <aside>
+                <hgroup>
+                    <h3>Minhas Listas</h3>
+                </hgroup>
+                <ul class="sidebar-list">
+                    {{ range .Lists }}
+                    <li>
+                        <a href="/list/{{.ID}}" class="{{ if eq .ID $.CurrentList.ID }}active{{ end }}">
+                            {{ .Name }}
+                        </a>
+                    </li>
+                    {{ end }}
+                </ul>
 
-        <!-- Formulário de Adição -->
-        <form hx-post="/add" hx-target="#list" hx-on::after-request="this.reset()">
-            <div class="grid">
-                <input type="text" name="name" placeholder="O que precisamos comprar?" required>
-                <button type="submit">Adicionar</button>
-            </div>
-        </form>
+                <hr>
+                
+                <!-- Criar Nova Lista -->
+                <form action="/lists/add" method="POST">
+                    <label for="new-list">Nova Lista</label>
+                    <div style="display: flex; gap: 0.5rem;">
+                        <input type="text" id="new-list" name="name" placeholder="Ex: Farmácia" required>
+                        <button type="submit" class="outline">+</button>
+                    </div>
+                </form>
+            </aside>
 
-        <!-- Lista de Itens -->
-        <article>
-            <div id="list">
-                {{ template "item-list" .Items }}
-            </div>
-        </article>
+            <!-- Conteúdo Principal: Itens da Lista -->
+            <section>
+                {{ if .CurrentList.ID }}
+                
+                <!-- Cabeçalho da Lista (Edição e Exclusão) -->
+                <header class="header-actions">
+                    <!-- Título e Form de Edição (Toggle via details/summary abuse or JS) -->
+                    <div style="flex-grow: 1;">
+                        <details>
+                            <summary role="button" class="secondary outline" style="border: none; padding: 0; background: none; color: var(--h1-color); font-size: 1.5em; font-weight: bold;">
+                                {{ .CurrentList.Name }} ✎
+                            </summary>
+                            <form action="/lists/edit/{{ .CurrentList.ID }}" method="POST" class="list-title-form" style="margin-top: 10px;">
+                                <input type="text" name="name" value="{{ .CurrentList.Name }}" required>
+                                <button type="submit">Salvar</button>
+                            </form>
+                        </details>
+                    </div>
+
+                    <!-- Botão de Excluir Lista -->
+                    <form action="/lists/delete/{{ .CurrentList.ID }}" method="POST" onsubmit="return confirm('Tem certeza que deseja apagar esta lista e todos os itens?');">
+                        <button type="submit" class="contrast outline" style="width: auto;">Apagar Lista</button>
+                    </form>
+                </header>
+
+                <!-- Formulário de Adicionar Item -->
+                <form hx-post="/items/add" hx-target="#items-container" hx-on::after-request="this.reset()">
+                    <input type="hidden" name="list_id" value="{{ .CurrentList.ID }}">
+                    <div class="grid">
+                        <input type="text" name="name" placeholder="Adicionar item em {{ .CurrentList.Name }}..." required autofocus>
+                        <button type="submit">Adicionar</button>
+                    </div>
+                </form>
+
+                <!-- Lista de Itens -->
+                <div id="items-container">
+                    {{ template "items-partial" . }}
+                </div>
+
+                {{ else }}
+                <article>
+                    <h3>Bem-vindo!</h3>
+                    <p>Selecione uma lista ao lado ou crie uma nova para começar.</p>
+                </article>
+                {{ end }}
+            </section>
+        </div>
     </main>
 
-    <!-- Template para a Lista (Reutilizado pelo HTMX) -->
-    {{ define "item-list" }}
-        {{ range . }}
-        <div class="item-row">
-            <span class="item-name {{ if .Completed }}completed{{ end }}"
-                  hx-post="/toggle/{{ .ID }}"
-                  hx-target="#list">
+    <!-- Template Parcial de Itens (para HTMX) -->
+    {{ define "items-partial" }}
+        {{ range .Items }}
+        <div class="grid" style="grid-template-columns: 1fr auto; align-items: center; border-bottom: 1px solid var(--muted-border); padding: 0.5rem 0;">
+            <span class="{{ if .Completed }}completed{{ end }}" 
+                  style="cursor: pointer;"
+                  hx-post="/items/toggle/{{ .ID }}" 
+                  hx-target="#items-container">
                 {{ .Name }}
             </span>
             <button class="outline secondary" 
-                    hx-delete="/delete/{{ .ID }}" 
-                    hx-target="#list"
-                    style="width: auto; padding: 0.2rem 0.5rem; font-size: 0.8rem;">
+                    hx-delete="/items/delete/{{ .ID }}" 
+                    hx-target="#items-container"
+                    style="border: none; padding: 0.2rem 0.5rem;">
                 ✕
             </button>
         </div>
         {{ else }}
-        <p style="text-align: center; color: #888;">Sua lista está vazia! 🎉</p>
+        <p style="text-align: center; color: #888; margin-top: 2rem;">Nenhum item nesta lista.</p>
         {{ end }}
     {{ end }}
 </body>
