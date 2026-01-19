@@ -37,6 +37,34 @@ go mod tidy
 go run cmd/server/main.go
 ```
 
+## Funcionalidades
+
+### 🔐 Autenticação
+- **PIN Opcional:** Configure um PIN via variável de ambiente `APP_PIN` para proteger o acesso
+- **Sessões Seguras:** Sistema de sessões com cookies HttpOnly e expiração automática (24h)
+- **Renovação Automática:** Sessões renovadas a cada requisição (sliding expiration)
+- **Acesso Público:** Se nenhum PIN for configurado, o app funciona sem autenticação
+
+### 📋 Gerenciamento de Listas
+- **Múltiplas Listas:** Crie e organize quantas listas de compras precisar
+- **CRUD Completo:** Adicione, edite e exclua listas conforme necessário
+- **Lista Padrão:** Uma "Lista Principal" é criada automaticamente no primeiro uso
+- **Proteção:** Sistema impede a exclusão da última lista restante
+- **Navegação Simplificada:** Alterne entre listas facilmente pela interface
+
+### ✅ Gerenciamento de Itens
+- **Adicionar Itens:** Insira produtos rapidamente na lista ativa
+- **Marcar/Desmarcar:** Toggle instantâneo para marcar itens como comprados
+- **Excluir Itens:** Remova itens indesejados com um clique
+- **Ordenação Inteligente:** Itens não comprados aparecem primeiro, depois os comprados
+- **Interface Reativa:** Atualização instantânea via HTMX sem recarregar a página
+
+### ⚡ Performance & UX
+- **Sem Build Frontend:** Interface HTMX + Pico.css, sem complexidade de build
+- **Navegação Fluida:** Experiência SPA-like sem JavaScript pesado
+- **Totalmente em Português:** Interface 100% localizada
+- **Mobile-First:** Design responsivo que funciona em qualquer dispositivo
+
 ## Estrutura
 
 - `cmd/server/main.go`: Lógica do servidor e banco de dados.
