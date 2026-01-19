@@ -6,12 +6,13 @@ WORKDIR /app
 # Copia os arquivos de definição de módulo
 COPY go.mod ./
 
-# Baixa as dependências e gera o go.sum
-# Como não temos go.sum localmente, o tidy vai resolver tudo
-RUN go mod tidy
-
 # Copia o código fonte
 COPY . .
+
+# Instala git (necessário para algumas dependências) e ajusta dependências
+# Rodamos o tidy AQUI para garantir que o go.mod final esteja correto
+# e não seja sobrescrito pelo COPY
+RUN apk add --no-cache git && go mod tidy
 
 # Compila a aplicação
 # CGO_ENABLED=0 garante um binário estático
