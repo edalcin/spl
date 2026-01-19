@@ -20,9 +20,9 @@ Baseado na arquitetura do [Koffan](https://github.com/PanSalut/Koffan).
    docker build -t ghcr.io/edalcin/spl:latest .
    ```
 
-2. **Rodar o container:**
+2. **Rodar o container (com PIN opcional):**
    ```bash
-   docker run -d -p 8080:8080 -v spl_data:/data ghcr.io/edalcin/spl:latest
+   docker run -d -p 8080:8080 -v spl_data:/data -e APP_PIN=1234 ghcr.io/edalcin/spl:latest
    ```
 
 3. Acesse `http://localhost:8080`

@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Acesso Restrito - Lista de Compras</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@1/css/pico.min.css">
+    <style>
+        body { display: flex; align-items: center; justify-content: center; min-height: 100vh; }
+        article { width: 100%; max-width: 400px; text-align: center; }
+        input { text-align: center; letter-spacing: 0.2rem; font-size: 1.2rem; }
+    </style>
+</head>
+<body>
+    <main class="container">
+        <article>
+            <hgroup>
+                <h1>🔐 Acesso Restrito</h1>
+                <h2>Informe o PIN para continuar</h2>
+            </hgroup>
+            
+            <form action="/login" method="POST">
+                <input type="password" name="pin" placeholder="PIN" required autofocus>
+                <button type="submit">Entrar</button>
+            </form>
+            
+            {{ if .Error }}
+            <p style="color: var(--del-color); margin-top: 1rem;">{{ .Error }}</p>
+            {{ end }}
+        </article>
+    </main>
+</body>
+</html>

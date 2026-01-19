@@ -41,6 +41,14 @@ Siga estes passos para instalar o **SPL (Simple Purchase List)** no seu servidor
    - **Access Mode:** Read/Write
    - Clique em **ADD**.
 
+   **PIN de Segurança (Opcional):**
+   - Clique em **Add another Path, Port, Variable, Label or Device**.
+   - **Config Type:** Variable
+   - **Name:** App PIN
+   - **Key:** `APP_PIN`
+   - **Value:** `1234` (Escolha sua senha numérica ou texto)
+   - Clique em **ADD**.
+
 6. Clique em **APPLY**.
 
 O Unraid irá baixar a imagem e iniciar o container. Assim que terminar, você poderá acessar o aplicativo clicando no ícone do container e selecionando **WebUI** ou acessando `http://SEU_IP_UNRAID:8080`.
