@@ -11,14 +11,13 @@
         /* Ajustes Gerais */
         body > nav { padding: 0 1rem; border-bottom: 1px solid var(--muted-border); margin-bottom: 1rem; }
         .container { max-width: 800px; }
-        
+
         /* Estilo dos Itens */
-        .completed { text-decoration: line-through; color: #888; }
-        .item-row { 
-            display: flex; 
-            align-items: center; 
-            padding: 0.8rem 0; 
-            border-bottom: 1px solid var(--muted-border); 
+        .item-row {
+            display: flex;
+            align-items: center;
+            padding: 0.8rem 0;
+            border-bottom: 1px solid var(--muted-border);
         }
         .item-row button.delete-btn {
             margin-right: 1rem;
@@ -37,7 +36,7 @@
         .item-edit-form { display: flex; gap: 0.5rem; flex-grow: 1; }
         .item-edit-form input { margin-bottom: 0; }
         .item-edit-form button { width: auto; margin-bottom: 0; padding: 0.2rem 0.5rem; }
-        .edit-btn {
+        .forget-btn {
             background: none;
             border: 1px solid transparent;
             padding: 0;
@@ -48,7 +47,7 @@
             color: var(--muted-color);
             min-width: auto;
         }
-        .edit-btn:hover {
+        .forget-btn:hover {
             border-color: var(--primary);
             color: var(--primary);
         }
@@ -56,7 +55,7 @@
         /* Ajuste do Dropdown do Pico para mobile */
         details[role="list"] { margin-bottom: 0; }
         summary { margin-bottom: 0; white-space: nowrap; max-width: 200px; overflow: hidden; text-overflow: ellipsis; }
-        
+
         /* Ajuste do botão adicionar */
         .add-form { display: flex; gap: 0.5rem; margin-bottom: 1.5rem; }
         .add-form input { margin-bottom: 0; }
@@ -143,7 +142,7 @@
                         {{ end }}
                     </tbody>
                 </table>
-                
+
                 <p style="margin-top: 2rem; text-align: center;">
                     <a href="/">Voltar para as listas</a>
                 </p>
@@ -155,10 +154,15 @@
                     <form hx-post="/items/add" hx-target="#items-container" hx-on::after-request="this.reset()">
                         <input type="hidden" name="list_id" value="{{ .CurrentList.ID }}">
                         <div class="add-form">
-                            <input type="text" name="name" placeholder="Adicionar item..." required autofocus>
+                            <input type="text" name="name" placeholder="Adicionar item..." required autofocus list="suggestions-list">
                             <button type="submit">+</button>
                         </div>
                     </form>
+                    <datalist id="suggestions-list">
+                        {{ range .Suggestions }}
+                        <option value="{{ . }}">
+                        {{ end }}
+                    </datalist>
 
                     <!-- Lista de Itens -->
                     <div id="items-container">
@@ -185,17 +189,18 @@
                 ✕
             </button>
 
-            <!-- Nome do Item (Modo Visualização) -->
-            <span class="item-name {{ if .Completed }}completed{{ end }}"
-                  hx-post="/items/toggle/{{ .ID }}"
-                  hx-target="#items-container">
+            <!-- Nome do Item (Clique para Editar) -->
+            <span class="item-name"
+                  onclick="this.style.display='none'; this.parentElement.querySelector('.forget-btn').style.display='none'; document.getElementById('edit-form-{{ .ID }}').style.display='flex';">
                 {{ .Name }}
             </span>
 
-            <!-- Botão de Editar -->
-            <button class="edit-btn"
-                    onclick="this.style.display='none'; document.getElementById('item-{{ .ID }}').querySelector('.item-name').style.display='none'; document.getElementById('edit-form-{{ .ID }}').style.display='flex';">
-                ✏️
+            <!-- Botão Esquecer (remove do autocomplete) -->
+            <button class="forget-btn"
+                    hx-post="/items/forget/{{ .ID }}"
+                    hx-target="#items-container"
+                    title="Esquecer (remover do auto-preenchimento)">
+                🚫
             </button>
 
             <!-- Formulário de Edição (Inicialmente Escondido) -->
@@ -204,10 +209,10 @@
                   style="display: none;"
                   hx-post="/items/edit/{{ .ID }}"
                   hx-target="#items-container">
-                <input type="text" name="name" value="{{ .Name }}" required autofocus>
+                <input type="text" name="name" value="{{ .Name }}" required>
                 <button type="submit" class="outline secondary">💾</button>
                 <button type="button" class="outline contrast"
-                        onclick="this.parentElement.style.display='none'; document.getElementById('item-{{ .ID }}').querySelector('.item-name').style.display='block'; document.getElementById('item-{{ .ID }}').querySelector('.edit-btn').style.display='block';">
+                        onclick="this.parentElement.style.display='none'; document.getElementById('item-{{ .ID }}').querySelector('.item-name').style.display='block'; document.getElementById('item-{{ .ID }}').querySelector('.forget-btn').style.display='block';">
                     ✕
                 </button>
             </form>
@@ -215,6 +220,12 @@
         {{ else }}
         <p style="text-align: center; color: #888; margin-top: 2rem;">Lista vazia! 🎉</p>
         {{ end }}
+        <!-- Update datalist via OOB swap -->
+        <datalist id="suggestions-list" hx-swap-oob="true">
+            {{ range .Suggestions }}
+            <option value="{{ . }}">
+            {{ end }}
+        </datalist>
     {{ end }}
 </body>
 </html>

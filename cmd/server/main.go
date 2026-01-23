@@ -42,6 +42,7 @@ type PageData struct {
 	Lists       []List
 	CurrentList List
 	Items       []Item
+	Suggestions []string
 	ShowManager bool
 }
 
@@ -65,19 +66,13 @@ func main() {
 	initDB()
 
 	// Arquivos Estáticos
-	// Remove o prefixo "cmd/server/" se necessário, mas como embedamos relative ao main.go
-	// e a pasta static está em cmd/server/static, o FS terá "static/favicon.svg".
-	// O FileServer servirá a raiz do FS.
 	http.Handle("/static/", http.FileServer(http.FS(views)))
 
 	// Handler de Login (Público)
 	http.HandleFunc("/login", loginHandler)
 	http.HandleFunc("/logout", logoutHandler)
 
-	// Rotas Protegidas (Middleware aplicado manualmente)
-	// Nota: Em Go puro, encadear middlewares é manual ou requer libs.
-	// Vou criar uma função wrapper 'protected' para simplificar.
-
+	// Rotas Protegidas
 	http.HandleFunc("/", protected(indexHandler))
 	http.HandleFunc("/manage", protected(manageHandler))
 
@@ -89,9 +84,9 @@ func main() {
 
 	// Itens
 	http.HandleFunc("/items/add", protected(addItemHandler))
-	http.HandleFunc("/items/toggle/", protected(toggleItemHandler))
 	http.HandleFunc("/items/edit/", protected(editItemHandler))
 	http.HandleFunc("/items/delete/", protected(deleteItemHandler))
+	http.HandleFunc("/items/forget/", protected(forgetItemHandler))
 
 	port := os.Getenv("PORT")
 	if port == "" {
@@ -106,7 +101,6 @@ func main() {
 func protected(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if appPIN == "" {
-			// Se não tem PIN configurado, passa direto
 			next(w, r)
 			return
 		}
@@ -117,16 +111,14 @@ func protected(next http.HandlerFunc) http.HandlerFunc {
 			return
 		}
 
-		// Valida o token na memória
 		expiry, ok := sessions.Load(cookie.Value)
 		if !ok || time.Now().After(expiry.(time.Time)) {
 			http.Redirect(w, r, "/login", http.StatusSeeOther)
 			return
 		}
 
-		// Renova a sessão a cada request (sliding expiration)
 		sessions.Store(cookie.Value, time.Now().Add(24*time.Hour))
-		
+
 		next(w, r)
 	}
 }
@@ -141,7 +133,6 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodPost {
 		pin := r.FormValue("pin")
 		if pin == appPIN {
-			// Gera Token
 			token := generateToken()
 			sessions.Store(token, time.Now().Add(24*time.Hour))
 
@@ -156,7 +147,6 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		// Erro
 		tmpl, _ := template.ParseFS(views, "views/login.html")
 		tmpl.Execute(w, map[string]string{"Error": "PIN Incorreto"})
 	}
@@ -188,7 +178,9 @@ func initDB() {
 		id INTEGER PRIMARY KEY AUTOINCREMENT,
 		name TEXT NOT NULL
 	);`)
-	if err != nil { log.Fatal(err) }
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	_, err = db.Exec(`CREATE TABLE IF NOT EXISTS items (
 		id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -197,7 +189,19 @@ func initDB() {
 		completed BOOLEAN NOT NULL DEFAULT 0,
 		FOREIGN KEY(list_id) REFERENCES lists(id) ON DELETE CASCADE
 	);`)
-	if err != nil { log.Fatal(err) }
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	_, err = db.Exec(`CREATE TABLE IF NOT EXISTS item_memory (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		list_id INTEGER,
+		name TEXT NOT NULL,
+		FOREIGN KEY(list_id) REFERENCES lists(id) ON DELETE CASCADE
+	);`)
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	db.Exec(`ALTER TABLE items ADD COLUMN list_id INTEGER DEFAULT 1;`)
 
@@ -235,7 +239,9 @@ func listViewHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func createListHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost { return }
+	if r.Method != http.MethodPost {
+		return
+	}
 	name := r.FormValue("name")
 	if strings.TrimSpace(name) != "" {
 		db.Exec("INSERT INTO lists (name) VALUES (?)", name)
@@ -260,6 +266,7 @@ func deleteListHandler(w http.ResponseWriter, r *http.Request) {
 	db.QueryRow("SELECT COUNT(*) FROM lists").Scan(&count)
 	if count > 1 {
 		db.Exec("DELETE FROM items WHERE list_id = ?", id)
+		db.Exec("DELETE FROM item_memory WHERE list_id = ?", id)
 		db.Exec("DELETE FROM lists WHERE id = ?", id)
 	}
 	http.Redirect(w, r, "/manage", http.StatusSeeOther)
@@ -270,18 +277,8 @@ func addItemHandler(w http.ResponseWriter, r *http.Request) {
 	name := r.FormValue("name")
 	if strings.TrimSpace(name) != "" {
 		db.Exec("INSERT INTO items (list_id, name, completed) VALUES (?, ?, ?)", listID, name, false)
+		db.Exec("DELETE FROM item_memory WHERE list_id = ? AND name = ?", listID, name)
 	}
-	tmpl, _ := template.ParseFS(views, "views/index.html")
-	tmpl.ExecuteTemplate(w, "items-partial", getDataForList(listID))
-}
-
-func toggleItemHandler(w http.ResponseWriter, r *http.Request) {
-	idStr := strings.TrimPrefix(r.URL.Path, "/items/toggle/")
-	id, _ := strconv.Atoi(idStr)
-	var completed bool
-	var listID int
-	db.QueryRow("SELECT completed, list_id FROM items WHERE id = ?", id).Scan(&completed, &listID)
-	db.Exec("UPDATE items SET completed = ? WHERE id = ?", !completed, id)
 	tmpl, _ := template.ParseFS(views, "views/index.html")
 	tmpl.ExecuteTemplate(w, "items-partial", getDataForList(listID))
 }
@@ -303,8 +300,25 @@ func deleteItemHandler(w http.ResponseWriter, r *http.Request) {
 	idStr := strings.TrimPrefix(r.URL.Path, "/items/delete/")
 	id, _ := strconv.Atoi(idStr)
 	var listID int
-	db.QueryRow("SELECT list_id FROM items WHERE id = ?", id).Scan(&listID)
+	var name string
+	db.QueryRow("SELECT list_id, name FROM items WHERE id = ?", id).Scan(&listID, &name)
+	var exists int
+	db.QueryRow("SELECT COUNT(*) FROM item_memory WHERE list_id = ? AND name = ?", listID, name).Scan(&exists)
+	if exists == 0 {
+		db.Exec("INSERT INTO item_memory (list_id, name) VALUES (?, ?)", listID, name)
+	}
 	db.Exec("DELETE FROM items WHERE id = ?", id)
+	tmpl, _ := template.ParseFS(views, "views/index.html")
+	tmpl.ExecuteTemplate(w, "items-partial", getDataForList(listID))
+}
+
+func forgetItemHandler(w http.ResponseWriter, r *http.Request) {
+	idStr := strings.TrimPrefix(r.URL.Path, "/items/forget/")
+	id, _ := strconv.Atoi(idStr)
+	var listID int
+	var name string
+	db.QueryRow("SELECT list_id, name FROM items WHERE id = ?", id).Scan(&listID, &name)
+	db.Exec("DELETE FROM item_memory WHERE list_id = ? AND name = ?", listID, name)
 	tmpl, _ := template.ParseFS(views, "views/index.html")
 	tmpl.ExecuteTemplate(w, "items-partial", getDataForList(listID))
 }
@@ -320,6 +334,7 @@ func getDataForList(listID int) PageData {
 	}
 	var currentList List
 	var items []Item
+	var suggestions []string
 	if listID > 0 {
 		db.QueryRow("SELECT id, name FROM lists WHERE id = ?", listID).Scan(&currentList.ID, &currentList.Name)
 		iRows, _ := db.Query("SELECT id, list_id, name, completed FROM items WHERE list_id = ? ORDER BY completed ASC, id DESC", listID)
@@ -329,8 +344,15 @@ func getDataForList(listID int) PageData {
 			iRows.Scan(&i.ID, &i.ListID, &i.Name, &i.Completed)
 			items = append(items, i)
 		}
+		sRows, _ := db.Query("SELECT DISTINCT name FROM item_memory WHERE list_id = ? ORDER BY name", listID)
+		defer sRows.Close()
+		for sRows.Next() {
+			var name string
+			sRows.Scan(&name)
+			suggestions = append(suggestions, name)
+		}
 	}
-	return PageData{Lists: lists, CurrentList: currentList, Items: items, ShowManager: false}
+	return PageData{Lists: lists, CurrentList: currentList, Items: items, Suggestions: suggestions, ShowManager: false}
 }
 
 func renderView(w http.ResponseWriter, data PageData) {
