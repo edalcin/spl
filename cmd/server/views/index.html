@@ -178,7 +178,7 @@
                 <!-- Tela da Lista de Compras Atual -->
                 {{ if .CurrentList.ID }}
                     <!-- Formulário de Adicionar Item -->
-                    <form hx-post="/items/add" hx-target="#items-container" hx-on::after-request="this.reset(); document.getElementById('suggestions-dropdown').innerHTML='';">
+                    <form hx-post="/items/add" hx-target="#items-container" hx-on::after-request="if(event.detail.elt===this){this.reset(); document.getElementById('suggestions-dropdown').innerHTML='';}">
                         <input type="hidden" name="list_id" value="{{ .CurrentList.ID }}">
                         <div class="add-form">
                             <input type="text" name="name" placeholder="Adicionar item..." required autofocus
