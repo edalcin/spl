@@ -54,10 +54,16 @@ go run cmd/server/main.go
 
 ### ✅ Gerenciamento de Itens
 - **Adicionar Itens:** Insira produtos rapidamente na lista ativa
-- **Marcar/Desmarcar:** Toggle instantâneo para marcar itens como comprados
+- **Edição Inline:** Clique no nome do item para editá-lo diretamente
 - **Excluir Itens:** Remova itens indesejados com um clique
-- **Ordenação Inteligente:** Itens não comprados aparecem primeiro, depois os comprados
 - **Interface Reativa:** Atualização instantânea via HTMX sem recarregar a página
+
+### 🧠 Memória e Autocomplete
+- **Memória Inteligente:** O sistema memoriza todos os itens já adicionados em cada lista
+- **Autocomplete Contextual:** Ao digitar, receba sugestões baseadas no histórico da lista atual
+- **Busca Fuzzy:** Encontre itens mesmo digitando apenas parte do nome
+- **Sugestões em Tempo Real:** Lista de até 10 sugestões aparece enquanto você digita
+- **Seleção Rápida:** Clique na sugestão para preencher automaticamente
 
 ### ⚡ Performance & UX
 - **Sem Build Frontend:** Interface HTMX + Pico.css, sem complexidade de build
