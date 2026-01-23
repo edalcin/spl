@@ -90,6 +90,7 @@ func main() {
 	// Itens
 	http.HandleFunc("/items/add", protected(addItemHandler))
 	http.HandleFunc("/items/toggle/", protected(toggleItemHandler))
+	http.HandleFunc("/items/edit/", protected(editItemHandler))
 	http.HandleFunc("/items/delete/", protected(deleteItemHandler))
 
 	port := os.Getenv("PORT")
@@ -283,6 +284,19 @@ func toggleItemHandler(w http.ResponseWriter, r *http.Request) {
 	db.Exec("UPDATE items SET completed = ? WHERE id = ?", !completed, id)
 	tmpl, _ := template.ParseFS(views, "views/index.html")
 	tmpl.ExecuteTemplate(w, "items-partial", getDataForList(listID))
+}
+
+func editItemHandler(w http.ResponseWriter, r *http.Request) {
+	idStr := strings.TrimPrefix(r.URL.Path, "/items/edit/")
+	id, _ := strconv.Atoi(idStr)
+	newName := r.FormValue("name")
+	if strings.TrimSpace(newName) != "" {
+		var listID int
+		db.QueryRow("SELECT list_id FROM items WHERE id = ?", id).Scan(&listID)
+		db.Exec("UPDATE items SET name = ? WHERE id = ?", newName, id)
+		tmpl, _ := template.ParseFS(views, "views/index.html")
+		tmpl.ExecuteTemplate(w, "items-partial", getDataForList(listID))
+	}
 }
 
 func deleteItemHandler(w http.ResponseWriter, r *http.Request) {
