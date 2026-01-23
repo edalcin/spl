@@ -85,7 +85,6 @@ func main() {
 	http.HandleFunc("/items/add", protected(addItemHandler))
 	http.HandleFunc("/items/edit/", protected(editItemHandler))
 	http.HandleFunc("/items/delete/", protected(deleteItemHandler))
-	http.HandleFunc("/items/forget/", protected(forgetItemHandler))
 	http.HandleFunc("/items/suggest", protected(suggestHandler))
 
 	port := os.Getenv("PORT")
@@ -308,17 +307,6 @@ func deleteItemHandler(w http.ResponseWriter, r *http.Request) {
 		db.Exec("INSERT INTO item_memory (list_id, name) VALUES (?, ?)", listID, name)
 	}
 	db.Exec("DELETE FROM items WHERE id = ?", id)
-	tmpl, _ := template.ParseFS(views, "views/index.html")
-	tmpl.ExecuteTemplate(w, "items-partial", getDataForList(listID))
-}
-
-func forgetItemHandler(w http.ResponseWriter, r *http.Request) {
-	idStr := strings.TrimPrefix(r.URL.Path, "/items/forget/")
-	id, _ := strconv.Atoi(idStr)
-	var listID int
-	var name string
-	db.QueryRow("SELECT list_id, name FROM items WHERE id = ?", id).Scan(&listID, &name)
-	db.Exec("DELETE FROM item_memory WHERE list_id = ? AND name = ?", listID, name)
 	tmpl, _ := template.ParseFS(views, "views/index.html")
 	tmpl.ExecuteTemplate(w, "items-partial", getDataForList(listID))
 }

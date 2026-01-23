@@ -36,23 +36,6 @@
         .item-edit-form { display: flex; gap: 0.5rem; flex-grow: 1; }
         .item-edit-form input { margin-bottom: 0; }
         .item-edit-form button { width: auto; margin-bottom: 0; padding: 0.2rem 0.5rem; }
-        .forget-btn {
-            background: none;
-            border: 1px solid transparent;
-            padding: 0 0.2rem;
-            margin: 0;
-            cursor: pointer;
-            font-size: 0.7rem;
-            line-height: 1;
-            color: var(--muted-color);
-            min-width: auto;
-            width: auto;
-            max-width: 1.5rem;
-        }
-        .forget-btn:hover {
-            border-color: var(--primary);
-            color: var(--primary);
-        }
 
         /* Ajuste do Dropdown do Pico para mobile */
         details[role="list"] { margin-bottom: 0; }
@@ -219,17 +202,9 @@
 
             <!-- Nome do Item (Clique para Editar) -->
             <span class="item-name"
-                  onclick="this.style.display='none'; this.parentElement.querySelector('.forget-btn').style.display='none'; document.getElementById('edit-form-{{ .ID }}').style.display='flex';">
+                  onclick="this.style.display='none'; document.getElementById('edit-form-{{ .ID }}').style.display='flex';">
                 {{ .Name }}
             </span>
-
-            <!-- Botão Esquecer (remove do autocomplete) -->
-            <button class="forget-btn"
-                    hx-post="/items/forget/{{ .ID }}"
-                    hx-target="#items-container"
-                    title="Esquecer (remover do auto-preenchimento)">
-                🚫
-            </button>
 
             <!-- Formulário de Edição (Inicialmente Escondido) -->
             <form class="item-edit-form"
