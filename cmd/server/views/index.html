@@ -37,6 +37,19 @@
         .item-edit-form { display: flex; gap: 0.5rem; flex-grow: 1; }
         .item-edit-form input { margin-bottom: 0; }
         .item-edit-form button { width: auto; margin-bottom: 0; padding: 0.2rem 0.5rem; }
+        .edit-btn {
+            background: none;
+            border: 1px solid transparent;
+            padding: 0.2rem 0.5rem;
+            margin: 0;
+            cursor: pointer;
+            font-size: 1rem;
+            color: var(--muted-color);
+        }
+        .edit-btn:hover {
+            border-color: var(--primary);
+            color: var(--primary);
+        }
 
         /* Ajuste do Dropdown do Pico para mobile */
         details[role="list"] { margin-bottom: 0; }
@@ -173,10 +186,15 @@
             <!-- Nome do Item (Modo Visualização) -->
             <span class="item-name {{ if .Completed }}completed{{ end }}"
                   hx-post="/items/toggle/{{ .ID }}"
-                  hx-target="#items-container"
-                  ondblclick="this.style.display='none'; document.getElementById('edit-form-{{ .ID }}').style.display='flex';">
+                  hx-target="#items-container">
                 {{ .Name }}
             </span>
+
+            <!-- Botão de Editar -->
+            <button class="edit-btn"
+                    onclick="this.style.display='none'; document.getElementById('item-{{ .ID }}').querySelector('.item-name').style.display='none'; document.getElementById('edit-form-{{ .ID }}').style.display='flex';">
+                ✏️
+            </button>
 
             <!-- Formulário de Edição (Inicialmente Escondido) -->
             <form class="item-edit-form"
@@ -187,7 +205,7 @@
                 <input type="text" name="name" value="{{ .Name }}" required autofocus>
                 <button type="submit" class="outline secondary">💾</button>
                 <button type="button" class="outline contrast"
-                        onclick="this.parentElement.style.display='none'; document.getElementById('item-{{ .ID }}').querySelector('.item-name').style.display='block';">
+                        onclick="this.parentElement.style.display='none'; document.getElementById('item-{{ .ID }}').querySelector('.item-name').style.display='block'; document.getElementById('item-{{ .ID }}').querySelector('.edit-btn').style.display='block';">
                     ✕
                 </button>
             </form>
