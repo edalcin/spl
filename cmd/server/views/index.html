@@ -39,13 +39,15 @@
         .forget-btn {
             background: none;
             border: 1px solid transparent;
-            padding: 0;
+            padding: 0 0.2rem;
             margin: 0;
             cursor: pointer;
-            font-size: 0.75rem;
+            font-size: 0.7rem;
             line-height: 1;
             color: var(--muted-color);
             min-width: auto;
+            width: auto;
+            max-width: 1.5rem;
         }
         .forget-btn:hover {
             border-color: var(--primary);
@@ -57,9 +59,34 @@
         summary { margin-bottom: 0; white-space: nowrap; max-width: 200px; overflow: hidden; text-overflow: ellipsis; }
 
         /* Ajuste do botão adicionar */
-        .add-form { display: flex; gap: 0.5rem; margin-bottom: 1.5rem; }
+        .add-form { display: flex; gap: 0.5rem; margin-bottom: 1.5rem; position: relative; flex-wrap: wrap; }
         .add-form input { margin-bottom: 0; }
         .add-form button { width: auto; margin-bottom: 0; }
+
+        /* Custom autocomplete dropdown */
+        .suggestions-dropdown {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 60px;
+            background: var(--card-background-color);
+            border: 1px solid var(--muted-border);
+            border-top: none;
+            z-index: 100;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        .suggestions-dropdown:empty {
+            display: none;
+        }
+        .suggestion-item {
+            padding: 0.5rem 0.8rem;
+            cursor: pointer;
+            font-size: 1rem;
+        }
+        .suggestion-item:hover {
+            background: var(--primary-focus);
+        }
     </style>
 </head>
 <body>
@@ -151,18 +178,19 @@
                 <!-- Tela da Lista de Compras Atual -->
                 {{ if .CurrentList.ID }}
                     <!-- Formulário de Adicionar Item -->
-                    <form hx-post="/items/add" hx-target="#items-container" hx-on::after-request="this.reset()">
+                    <form hx-post="/items/add" hx-target="#items-container" hx-on::after-request="this.reset(); document.getElementById('suggestions-dropdown').innerHTML='';">
                         <input type="hidden" name="list_id" value="{{ .CurrentList.ID }}">
                         <div class="add-form">
-                            <input type="text" name="name" placeholder="Adicionar item..." required autofocus list="suggestions-list">
+                            <input type="text" name="name" placeholder="Adicionar item..." required autofocus
+                                   autocomplete="off"
+                                   hx-get="/items/suggest"
+                                   hx-trigger="input changed delay:200ms, focus"
+                                   hx-target="#suggestions-dropdown"
+                                   hx-include="closest form">
                             <button type="submit">+</button>
+                            <div id="suggestions-dropdown" class="suggestions-dropdown"></div>
                         </div>
                     </form>
-                    <datalist id="suggestions-list">
-                        {{ range .Suggestions }}
-                        <option value="{{ . }}">
-                        {{ end }}
-                    </datalist>
 
                     <!-- Lista de Itens -->
                     <div id="items-container">
@@ -220,12 +248,20 @@
         {{ else }}
         <p style="text-align: center; color: #888; margin-top: 2rem;">Lista vazia! 🎉</p>
         {{ end }}
-        <!-- Update datalist via OOB swap -->
-        <datalist id="suggestions-list" hx-swap-oob="true">
-            {{ range .Suggestions }}
-            <option value="{{ . }}">
-            {{ end }}
-        </datalist>
     {{ end }}
+    <script>
+    function selectSuggestion(el) {
+        var input = document.querySelector('.add-form input[name="name"]');
+        input.value = el.textContent;
+        document.getElementById('suggestions-dropdown').innerHTML = '';
+        input.focus();
+    }
+    document.addEventListener('click', function(e) {
+        if (!e.target.closest('.add-form')) {
+            var dd = document.getElementById('suggestions-dropdown');
+            if (dd) dd.innerHTML = '';
+        }
+    });
+    </script>
 </body>
 </html>

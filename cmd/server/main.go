@@ -42,7 +42,6 @@ type PageData struct {
 	Lists       []List
 	CurrentList List
 	Items       []Item
-	Suggestions []string
 	ShowManager bool
 }
 
@@ -87,6 +86,7 @@ func main() {
 	http.HandleFunc("/items/edit/", protected(editItemHandler))
 	http.HandleFunc("/items/delete/", protected(deleteItemHandler))
 	http.HandleFunc("/items/forget/", protected(forgetItemHandler))
+	http.HandleFunc("/items/suggest", protected(suggestHandler))
 
 	port := os.Getenv("PORT")
 	if port == "" {
@@ -323,6 +323,28 @@ func forgetItemHandler(w http.ResponseWriter, r *http.Request) {
 	tmpl.ExecuteTemplate(w, "items-partial", getDataForList(listID))
 }
 
+func suggestHandler(w http.ResponseWriter, r *http.Request) {
+	listID, _ := strconv.Atoi(r.FormValue("list_id"))
+	q := strings.TrimSpace(r.FormValue("name"))
+	if q == "" || listID == 0 {
+		w.Write([]byte(""))
+		return
+	}
+	rows, err := db.Query("SELECT DISTINCT name FROM item_memory WHERE list_id = ? AND LOWER(name) LIKE LOWER(?) ORDER BY name LIMIT 10", listID, "%"+q+"%")
+	if err != nil {
+		w.Write([]byte(""))
+		return
+	}
+	defer rows.Close()
+	var html strings.Builder
+	for rows.Next() {
+		var name string
+		rows.Scan(&name)
+		html.WriteString(`<div class="suggestion-item" onclick="selectSuggestion(this)">` + template.HTMLEscapeString(name) + `</div>`)
+	}
+	w.Write([]byte(html.String()))
+}
+
 func getDataForList(listID int) PageData {
 	lists := []List{}
 	rows, _ := db.Query("SELECT id, name FROM lists ORDER BY id")
@@ -334,7 +356,6 @@ func getDataForList(listID int) PageData {
 	}
 	var currentList List
 	var items []Item
-	var suggestions []string
 	if listID > 0 {
 		db.QueryRow("SELECT id, name FROM lists WHERE id = ?", listID).Scan(&currentList.ID, &currentList.Name)
 		iRows, _ := db.Query("SELECT id, list_id, name, completed FROM items WHERE list_id = ? ORDER BY completed ASC, id DESC", listID)
@@ -344,15 +365,8 @@ func getDataForList(listID int) PageData {
 			iRows.Scan(&i.ID, &i.ListID, &i.Name, &i.Completed)
 			items = append(items, i)
 		}
-		sRows, _ := db.Query("SELECT DISTINCT name FROM item_memory WHERE list_id = ? ORDER BY name", listID)
-		defer sRows.Close()
-		for sRows.Next() {
-			var name string
-			sRows.Scan(&name)
-			suggestions = append(suggestions, name)
-		}
 	}
-	return PageData{Lists: lists, CurrentList: currentList, Items: items, Suggestions: suggestions, ShowManager: false}
+	return PageData{Lists: lists, CurrentList: currentList, Items: items, ShowManager: false}
 }
 
 func renderView(w http.ResponseWriter, data PageData) {
