@@ -20,8 +20,9 @@
                 <h2>Informe o PIN para continuar</h2>
             </hgroup>
             
-            <form action="/login" method="POST">
-                <input type="password" name="pin" placeholder="PIN" required autofocus>
+            <form action="/login" method="POST" autocomplete="on">
+                <input type="text" name="username" value="user" autocomplete="username" style="display:none">
+                <input type="password" name="pin" placeholder="PIN" required autofocus autocomplete="current-password">
                 <button type="submit">Entrar</button>
             </form>
             
