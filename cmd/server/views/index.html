@@ -121,6 +121,11 @@
             white-space: nowrap;
         }
         .move-dropdown a:hover { background: var(--primary-focus); }
+
+        /* Nav dropdown drag handle */
+        #nav-lists-sortable li[data-list-id] { display: flex; align-items: center; }
+        #nav-lists-sortable li[data-list-id] a { flex-grow: 1; }
+        .nav-drag-handle { cursor: grab; padding: 0 0.4rem 0 0; font-size: 1rem; color: var(--muted-color); }
     </style>
 </head>
 <body>
@@ -141,12 +146,12 @@
                     <summary aria-haspopup="listbox" role="button" class="outline">
                         {{ if .CurrentList.ID }}{{ .CurrentList.Name }}{{ else }}Selecionar...{{ end }}
                     </summary>
-                    <ul role="listbox">
+                    <ul role="listbox" id="nav-lists-sortable">
                         {{ range .Lists }}
-                        <li><a href="/list/{{.ID}}">{{.Name}}</a></li>
+                        <li data-list-id="{{.ID}}"><span class="drag-handle nav-drag-handle">≡</span><a href="/list/{{.ID}}">{{.Name}}</a></li>
                         {{ end }}
-                        <li><hr></li>
-                        <li><a href="/manage" style="color: var(--primary);">+ Criar Nova</a></li>
+                        <li class="nav-list-fixed"><hr></li>
+                        <li class="nav-list-fixed"><a href="/manage" style="color: var(--primary);">+ Criar Nova</a></li>
                     </ul>
                 </details>
                 {{ end }}
@@ -381,10 +386,48 @@
         });
     }
 
+    // Initialize SortableJS for nav dropdown list selector
+    function initNavListsSortable() {
+        var ul = document.getElementById('nav-lists-sortable');
+        if (!ul) return;
+        var details = ul.closest('details');
+        Sortable.create(ul, {
+            handle: '.nav-drag-handle',
+            ghostClass: 'sortable-ghost',
+            chosenClass: 'sortable-chosen',
+            animation: 150,
+            filter: '.nav-list-fixed',
+            onStart: function() {
+                if (details) details.setAttribute('data-dragging', 'true');
+            },
+            onEnd: function() {
+                if (details) details.removeAttribute('data-dragging');
+                var ids = [];
+                ul.querySelectorAll('li[data-list-id]').forEach(function(el) {
+                    ids.push(parseInt(el.getAttribute('data-list-id')));
+                });
+                fetch('/lists/reorder', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({listIDs: ids})
+                });
+            }
+        });
+        // Prevent dropdown from closing during drag
+        if (details) {
+            details.addEventListener('toggle', function(e) {
+                if (!details.open && details.getAttribute('data-dragging') === 'true') {
+                    details.open = true;
+                }
+            });
+        }
+    }
+
     // Init on page load
     document.addEventListener('DOMContentLoaded', function() {
         initItemsSortable();
         initListsSortable();
+        initNavListsSortable();
     });
 
     // Re-init after HTMX swaps
