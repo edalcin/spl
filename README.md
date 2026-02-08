@@ -48,6 +48,7 @@ go run cmd/server/main.go
 ### 📋 Gerenciamento de Listas
 - **Múltiplas Listas:** Crie e organize quantas listas de compras precisar
 - **CRUD Completo:** Adicione, edite e exclua listas conforme necessário
+- **Reordenar por Arraste:** Arraste listas pela alça (≡) na tela de gerenciamento para definir a ordem
 - **Lista Padrão:** Uma "Lista Principal" é criada automaticamente no primeiro uso
 - **Proteção:** Sistema impede a exclusão da última lista restante
 - **Navegação Simplificada:** Alterne entre listas facilmente pela interface
@@ -56,6 +57,8 @@ go run cmd/server/main.go
 - **Adicionar Itens:** Insira produtos rapidamente na lista ativa
 - **Edição Inline:** Clique no nome do item para editá-lo diretamente
 - **Excluir Itens:** Remova itens indesejados com um clique
+- **Reordenar por Arraste:** Arraste itens pela alça (≡) para reorganizar a ordem
+- **Mover entre Listas:** Use o botão (→) para transferir um item para outra lista
 - **Interface Reativa:** Atualização instantânea via HTMX sem recarregar a página
 
 ### 🧠 Memória e Autocomplete
@@ -66,6 +69,7 @@ go run cmd/server/main.go
 - **Seleção Rápida:** Clique na sugestão para preencher automaticamente
 
 ### ⚡ Performance & UX
+- **Drag & Drop:** Reordenação intuitiva via SortableJS, com suporte a touch/mobile
 - **Sem Build Frontend:** Interface HTMX + Pico.css, sem complexidade de build
 - **Navegação Fluida:** Experiência SPA-like sem JavaScript pesado
 - **Totalmente em Português:** Interface 100% localizada
