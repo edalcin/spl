@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"embed"
 	"encoding/base64"
+	"encoding/json"
 	"html/template"
 	"log"
 	"net/http"
@@ -27,8 +28,9 @@ var (
 )
 
 type List struct {
-	ID   int
-	Name string
+	ID       int
+	Name     string
+	Position int
 }
 
 type Item struct {
@@ -36,6 +38,7 @@ type Item struct {
 	ListID    int
 	Name      string
 	Completed bool
+	Position  int
 }
 
 type PageData struct {
@@ -86,6 +89,11 @@ func main() {
 	http.HandleFunc("/items/edit/", protected(editItemHandler))
 	http.HandleFunc("/items/delete/", protected(deleteItemHandler))
 	http.HandleFunc("/items/suggest", protected(suggestHandler))
+	http.HandleFunc("/items/reorder", protected(reorderItemsHandler))
+	http.HandleFunc("/items/move", protected(moveItemHandler))
+
+	// Reordenar Listas
+	http.HandleFunc("/lists/reorder", protected(reorderListsHandler))
 
 	port := os.Getenv("PORT")
 	if port == "" {
@@ -203,6 +211,12 @@ func initDB() {
 	}
 
 	db.Exec(`ALTER TABLE items ADD COLUMN list_id INTEGER DEFAULT 1;`)
+	db.Exec(`ALTER TABLE items ADD COLUMN position INTEGER DEFAULT 0;`)
+	db.Exec(`ALTER TABLE lists ADD COLUMN position INTEGER DEFAULT 0;`)
+
+	// Initialize positions for existing rows that have position=0
+	db.Exec(`UPDATE items SET position = id WHERE position = 0`)
+	db.Exec(`UPDATE lists SET position = id WHERE position = 0`)
 
 	var count int
 	db.QueryRow("SELECT COUNT(*) FROM lists").Scan(&count)
@@ -217,7 +231,7 @@ func initDB() {
 
 func indexHandler(w http.ResponseWriter, r *http.Request) {
 	var firstListID int
-	err := db.QueryRow("SELECT id FROM lists ORDER BY id ASC LIMIT 1").Scan(&firstListID)
+	err := db.QueryRow("SELECT id FROM lists ORDER BY position ASC, id ASC LIMIT 1").Scan(&firstListID)
 	if err == nil {
 		http.Redirect(w, r, "/list/"+strconv.Itoa(firstListID), http.StatusSeeOther)
 		return
@@ -243,7 +257,9 @@ func createListHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	name := r.FormValue("name")
 	if strings.TrimSpace(name) != "" {
-		db.Exec("INSERT INTO lists (name) VALUES (?)", name)
+		var maxPos int
+		db.QueryRow("SELECT COALESCE(MAX(position), 0) FROM lists").Scan(&maxPos)
+		db.Exec("INSERT INTO lists (name, position) VALUES (?, ?)", name, maxPos+1)
 	}
 	http.Redirect(w, r, "/manage", http.StatusSeeOther)
 }
@@ -275,7 +291,9 @@ func addItemHandler(w http.ResponseWriter, r *http.Request) {
 	listID, _ := strconv.Atoi(r.FormValue("list_id"))
 	name := r.FormValue("name")
 	if strings.TrimSpace(name) != "" {
-		db.Exec("INSERT INTO items (list_id, name, completed) VALUES (?, ?, ?)", listID, name, false)
+		var maxPos int
+		db.QueryRow("SELECT COALESCE(MAX(position), 0) FROM items WHERE list_id = ?", listID).Scan(&maxPos)
+		db.Exec("INSERT INTO items (list_id, name, completed, position) VALUES (?, ?, ?, ?)", listID, name, false, maxPos+1)
 		db.Exec("DELETE FROM item_memory WHERE list_id = ? AND name = ?", listID, name)
 	}
 	tmpl, _ := template.ParseFS(views, "views/index.html")
@@ -333,24 +351,79 @@ func suggestHandler(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte(html.String()))
 }
 
+func reorderItemsHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		return
+	}
+	var payload struct {
+		ItemIDs []int `json:"itemIDs"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		http.Error(w, "bad request", http.StatusBadRequest)
+		return
+	}
+	for i, id := range payload.ItemIDs {
+		db.Exec("UPDATE items SET position = ? WHERE id = ?", i+1, id)
+	}
+	w.WriteHeader(http.StatusOK)
+}
+
+func moveItemHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		return
+	}
+	var payload struct {
+		ItemID       int `json:"itemID"`
+		TargetListID int `json:"targetListID"`
+		SourceListID int `json:"sourceListID"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		http.Error(w, "bad request", http.StatusBadRequest)
+		return
+	}
+	var maxPos int
+	db.QueryRow("SELECT COALESCE(MAX(position), 0) FROM items WHERE list_id = ?", payload.TargetListID).Scan(&maxPos)
+	db.Exec("UPDATE items SET list_id = ?, position = ? WHERE id = ?", payload.TargetListID, maxPos+1, payload.ItemID)
+	// Return updated items partial for the source list
+	tmpl, _ := template.ParseFS(views, "views/index.html")
+	tmpl.ExecuteTemplate(w, "items-partial", getDataForList(payload.SourceListID))
+}
+
+func reorderListsHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		return
+	}
+	var payload struct {
+		ListIDs []int `json:"listIDs"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		http.Error(w, "bad request", http.StatusBadRequest)
+		return
+	}
+	for i, id := range payload.ListIDs {
+		db.Exec("UPDATE lists SET position = ? WHERE id = ?", i+1, id)
+	}
+	w.WriteHeader(http.StatusOK)
+}
+
 func getDataForList(listID int) PageData {
 	lists := []List{}
-	rows, _ := db.Query("SELECT id, name FROM lists ORDER BY id")
+	rows, _ := db.Query("SELECT id, name, position FROM lists ORDER BY position ASC, id ASC")
 	defer rows.Close()
 	for rows.Next() {
 		var l List
-		rows.Scan(&l.ID, &l.Name)
+		rows.Scan(&l.ID, &l.Name, &l.Position)
 		lists = append(lists, l)
 	}
 	var currentList List
 	var items []Item
 	if listID > 0 {
 		db.QueryRow("SELECT id, name FROM lists WHERE id = ?", listID).Scan(&currentList.ID, &currentList.Name)
-		iRows, _ := db.Query("SELECT id, list_id, name, completed FROM items WHERE list_id = ? ORDER BY completed ASC, id DESC", listID)
+		iRows, _ := db.Query("SELECT id, list_id, name, completed, position FROM items WHERE list_id = ? ORDER BY completed ASC, position ASC, id DESC", listID)
 		defer iRows.Close()
 		for iRows.Next() {
 			var i Item
-			iRows.Scan(&i.ID, &i.ListID, &i.Name, &i.Completed)
+			iRows.Scan(&i.ID, &i.ListID, &i.Name, &i.Completed, &i.Position)
 			items = append(items, i)
 		}
 	}

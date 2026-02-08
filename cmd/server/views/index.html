@@ -7,6 +7,7 @@
     <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@1/css/pico.min.css">
     <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
     <style>
         /* Ajustes Gerais */
         body > nav { padding: 0 1rem; border-bottom: 1px solid var(--muted-border); margin-bottom: 1rem; }
@@ -70,6 +71,56 @@
         .suggestion-item:hover {
             background: var(--primary-focus);
         }
+
+        /* Drag & Drop */
+        .drag-handle {
+            cursor: grab;
+            padding: 0 0.5rem;
+            color: var(--muted-color);
+            user-select: none;
+            font-size: 1.2rem;
+            display: flex;
+            align-items: center;
+        }
+        .drag-handle:active { cursor: grabbing; }
+        .sortable-ghost { opacity: 0.3; background: var(--primary-focus); }
+        .sortable-chosen { background: var(--card-background-color); }
+
+        /* Move to list button */
+        .move-btn {
+            margin-bottom: 0;
+            padding: 0.2rem 0.5rem;
+            width: auto;
+            background: transparent;
+            border: 1px solid var(--muted-border);
+            color: var(--muted-color);
+            position: relative;
+            cursor: pointer;
+            font-size: 0.85rem;
+        }
+        .move-btn:hover { border-color: var(--primary); color: var(--primary); }
+        .move-dropdown {
+            display: none;
+            position: absolute;
+            right: 0;
+            top: 100%;
+            background: var(--card-background-color);
+            border: 1px solid var(--muted-border);
+            border-radius: 4px;
+            z-index: 200;
+            min-width: 150px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+        }
+        .move-dropdown.open { display: block; }
+        .move-dropdown a {
+            display: block;
+            padding: 0.5rem 0.8rem;
+            text-decoration: none;
+            color: var(--color);
+            font-size: 0.9rem;
+            white-space: nowrap;
+        }
+        .move-dropdown a:hover { background: var(--primary-focus); }
     </style>
 </head>
 <body>
@@ -128,13 +179,15 @@
                 <table role="grid">
                     <thead>
                         <tr>
+                            <th style="width: 40px;"></th>
                             <th>Nome da Lista</th>
                             <th style="width: 100px;">Ações</th>
                         </tr>
                     </thead>
-                    <tbody>
+                    <tbody id="lists-sortable">
                         {{ range .Lists }}
-                        <tr>
+                        <tr data-list-id="{{.ID}}">
+                            <td><span class="drag-handle">≡</span></td>
                             <td>
                                 <form action="/lists/edit/{{.ID}}" method="POST" style="margin-bottom: 0;">
                                     <div style="display: flex; gap: 0.5rem;">
@@ -192,7 +245,10 @@
     <!-- Template Parcial de Itens -->
     {{ define "items-partial" }}
         {{ range .Items }}
-        <div class="item-row" id="item-{{ .ID }}">
+        <div class="item-row" id="item-{{ .ID }}" data-item-id="{{ .ID }}">
+            <!-- Alça de Arraste -->
+            <span class="drag-handle item-drag-handle">≡</span>
+
             <!-- Botão de Deletar -->
             <button class="delete-btn"
                     hx-delete="/items/delete/{{ .ID }}"
@@ -215,10 +271,20 @@
                 <input type="text" name="name" value="{{ .Name }}" required>
                 <button type="submit" class="outline secondary">💾</button>
                 <button type="button" class="outline contrast"
-                        onclick="this.parentElement.style.display='none'; document.getElementById('item-{{ .ID }}').querySelector('.item-name').style.display='block'; document.getElementById('item-{{ .ID }}').querySelector('.forget-btn').style.display='block';">
+                        onclick="this.parentElement.style.display='none'; document.getElementById('item-{{ .ID }}').querySelector('.item-name').style.display='block';">
                     ✕
                 </button>
             </form>
+
+            <!-- Mover para outra lista -->
+            <div style="position: relative; margin-left: 0.5rem;">
+                <button class="move-btn" onclick="toggleMoveDropdown(this)" title="Mover para outra lista">&#8594;</button>
+                <div class="move-dropdown">
+                    {{ range $.Lists }}
+                    <a href="#" onclick="moveItem({{ $.CurrentList.ID }}, event, this)" data-target-list-id="{{.ID}}">{{.Name}}</a>
+                    {{ end }}
+                </div>
+            </div>
         </div>
         {{ else }}
         <p style="text-align: center; color: #888; margin-top: 2rem;">Lista vazia! 🎉</p>
@@ -235,6 +301,96 @@
         if (!e.target.closest('.add-form')) {
             var dd = document.getElementById('suggestions-dropdown');
             if (dd) dd.innerHTML = '';
+        }
+        // Close move dropdowns when clicking outside
+        if (!e.target.closest('.move-btn') && !e.target.closest('.move-dropdown')) {
+            document.querySelectorAll('.move-dropdown.open').forEach(function(d) { d.classList.remove('open'); });
+        }
+    });
+
+    // Toggle move-to-list dropdown
+    function toggleMoveDropdown(btn) {
+        var dd = btn.nextElementSibling;
+        document.querySelectorAll('.move-dropdown.open').forEach(function(d) { if (d !== dd) d.classList.remove('open'); });
+        dd.classList.toggle('open');
+    }
+
+    // Move item to another list
+    function moveItem(currentListID, e, el) {
+        e.preventDefault();
+        var targetListID = parseInt(el.getAttribute('data-target-list-id'));
+        var itemRow = el.closest('.item-row');
+        var itemID = parseInt(itemRow.getAttribute('data-item-id'));
+        if (targetListID === currentListID) {
+            el.closest('.move-dropdown').classList.remove('open');
+            return;
+        }
+        fetch('/items/move', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({itemID: itemID, targetListID: targetListID, sourceListID: currentListID})
+        }).then(function(r) { return r.text(); }).then(function(html) {
+            document.getElementById('items-container').innerHTML = html;
+            initItemsSortable();
+        });
+    }
+
+    // Initialize SortableJS for items
+    function initItemsSortable() {
+        var container = document.getElementById('items-container');
+        if (!container) return;
+        Sortable.create(container, {
+            handle: '.item-drag-handle',
+            ghostClass: 'sortable-ghost',
+            chosenClass: 'sortable-chosen',
+            animation: 150,
+            onEnd: function() {
+                var ids = [];
+                container.querySelectorAll('.item-row[data-item-id]').forEach(function(el) {
+                    ids.push(parseInt(el.getAttribute('data-item-id')));
+                });
+                fetch('/items/reorder', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({itemIDs: ids})
+                });
+            }
+        });
+    }
+
+    // Initialize SortableJS for lists table
+    function initListsSortable() {
+        var tbody = document.getElementById('lists-sortable');
+        if (!tbody) return;
+        Sortable.create(tbody, {
+            handle: '.drag-handle',
+            ghostClass: 'sortable-ghost',
+            chosenClass: 'sortable-chosen',
+            animation: 150,
+            onEnd: function() {
+                var ids = [];
+                tbody.querySelectorAll('tr[data-list-id]').forEach(function(el) {
+                    ids.push(parseInt(el.getAttribute('data-list-id')));
+                });
+                fetch('/lists/reorder', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({listIDs: ids})
+                });
+            }
+        });
+    }
+
+    // Init on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        initItemsSortable();
+        initListsSortable();
+    });
+
+    // Re-init after HTMX swaps
+    document.addEventListener('htmx:afterSwap', function(e) {
+        if (e.detail.target.id === 'items-container') {
+            initItemsSortable();
         }
     });
     </script>
