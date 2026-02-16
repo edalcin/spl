@@ -291,9 +291,9 @@ func addItemHandler(w http.ResponseWriter, r *http.Request) {
 	listID, _ := strconv.Atoi(r.FormValue("list_id"))
 	name := r.FormValue("name")
 	if strings.TrimSpace(name) != "" {
-		var maxPos int
-		db.QueryRow("SELECT COALESCE(MAX(position), 0) FROM items WHERE list_id = ?", listID).Scan(&maxPos)
-		db.Exec("INSERT INTO items (list_id, name, completed, position) VALUES (?, ?, ?, ?)", listID, name, false, maxPos+1)
+		var minPos int
+		db.QueryRow("SELECT COALESCE(MIN(position), 1) FROM items WHERE list_id = ?", listID).Scan(&minPos)
+		db.Exec("INSERT INTO items (list_id, name, completed, position) VALUES (?, ?, ?, ?)", listID, name, false, minPos-1)
 		db.Exec("DELETE FROM item_memory WHERE list_id = ? AND name = ?", listID, name)
 	}
 	tmpl, _ := template.ParseFS(views, "views/index.html")
