@@ -2,14 +2,28 @@
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>Acesso Restrito - Lista de Compras</title>
+    <!-- PWA & Mobile Meta Tags -->
     <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+    <link rel="manifest" href="/static/manifest.json">
+    <meta name="theme-color" content="#1095c1">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Compras">
+    <link rel="apple-touch-icon" href="/static/favicon.svg">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@1/css/pico.min.css">
     <style>
-        body { display: flex; align-items: center; justify-content: center; min-height: 100vh; }
+        body {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+        }
         article { width: 100%; max-width: 400px; text-align: center; }
-        input { text-align: center; letter-spacing: 0.2rem; font-size: 1.2rem; }
+        input { text-align: center; letter-spacing: 0.3rem; font-size: 1.4rem; min-height: 50px; }
+        button[type="submit"] { min-height: 50px; font-size: 1.1rem; }
     </style>
 </head>
 <body>
@@ -22,7 +36,7 @@
             
             <form action="/login" method="POST" autocomplete="on">
                 <input type="text" name="username" value="user" autocomplete="username" style="display:none">
-                <input type="password" name="pin" placeholder="PIN" required autofocus autocomplete="current-password">
+                <input type="password" name="pin" placeholder="PIN" required autofocus autocomplete="current-password" inputmode="numeric">
                 <button type="submit">Entrar</button>
             </form>
             
