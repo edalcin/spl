@@ -267,6 +267,35 @@
             color: var(--muted-color);
             margin-left: 0.3rem;
         }
+        .memory-delete-btn {
+            margin-bottom: 0;
+            padding: 0.3rem 0.5rem;
+            width: auto;
+            min-width: 36px;
+            min-height: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: transparent;
+            border: 1px solid var(--muted-border);
+            color: var(--muted-color);
+            cursor: pointer;
+            font-size: 0.85rem;
+            border-radius: var(--border-radius);
+            flex-shrink: 0;
+        }
+        .memory-delete-btn:hover { border-color: var(--del-color); color: var(--del-color); }
+        .memory-delete-btn:active { background: var(--del-color); color: #fff; transform: scale(0.95); }
+        .list-memory-link {
+            width: 100%;
+            padding: 0.2rem 0.5rem 0.1rem;
+            font-size: 0.8rem;
+        }
+        .list-memory-link a {
+            color: var(--muted-color);
+            text-decoration: none;
+        }
+        .list-memory-link a:hover { color: var(--primary); }
 
         /* === Feedback tátil global === */
         button:active, a:active, summary:active {
@@ -388,7 +417,7 @@
                 <!-- Lista de Listas (Cards responsivos) -->
                 <div class="lists-manager" id="lists-sortable">
                     {{ range .Lists }}
-                    <div class="list-card" data-list-id="{{.ID}}">
+                    <div class="list-card" data-list-id="{{.ID}}" style="flex-wrap: wrap;">
                         <span class="drag-handle">≡</span>
                         <form action="/lists/edit/{{.ID}}" method="POST">
                             <div class="list-edit-group">
@@ -396,11 +425,13 @@
                                 <button type="submit" class="outline secondary">💾</button>
                             </div>
                         </form>
-                        <a href="/memory/{{.ID}}" role="button" class="outline secondary" style="margin-bottom: 0; padding: 0.5rem 0.7rem; min-width: 44px; min-height: 44px; display: flex; align-items: center; justify-content: center; text-decoration: none; white-space: nowrap;" title="Gerenciar memória da lista">🧠</a>
                         <div class="list-delete-btn">
                             <form action="/lists/delete/{{.ID}}" method="POST" style="margin-bottom: 0;" onsubmit="return confirm('Apagar lista {{.Name}}?');">
                                 <button type="submit" class="outline contrast">🗑️</button>
                             </form>
+                        </div>
+                        <div class="list-memory-link">
+                            <a href="/memory/{{.ID}}">🧠 Gerenciar memória desta lista</a>
                         </div>
                     </div>
                     {{ end }}
@@ -432,10 +463,6 @@
                     <div id="items-container">
                         {{ template "items-partial" . }}
                     </div>
-
-                    <p style="margin-top: 1.5rem; text-align: center;">
-                        <a href="/memory/{{ .CurrentList.ID }}" class="secondary" style="font-size: 0.85rem; color: var(--muted-color); text-decoration: none;">🧠 Gerenciar memória desta lista</a>
-                    </p>
                 {{ else }}
                     <article style="text-align: center;">
                         <h3>Nenhuma lista selecionada</h3>
@@ -474,7 +501,7 @@
             </form>
 
             <!-- Botão de Deletar -->
-            <button class="delete-btn"
+            <button class="memory-delete-btn"
                     hx-delete="/memory/delete/{{ .ID }}"
                     hx-target="#memory-container">
                 🗑️
