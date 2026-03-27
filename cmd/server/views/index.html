@@ -432,6 +432,10 @@
                     <div id="items-container">
                         {{ template "items-partial" . }}
                     </div>
+
+                    <p style="margin-top: 1.5rem; text-align: center;">
+                        <a href="/memory/{{ .CurrentList.ID }}" class="secondary" style="font-size: 0.85rem; color: var(--muted-color); text-decoration: none;">🧠 Gerenciar memória desta lista</a>
+                    </p>
                 {{ else }}
                     <article style="text-align: center;">
                         <h3>Nenhuma lista selecionada</h3>
