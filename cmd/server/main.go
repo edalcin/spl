@@ -41,11 +41,19 @@ type Item struct {
 	Position  int
 }
 
+type MemoryItem struct {
+	ID     int
+	ListID int
+	Name   string
+}
+
 type PageData struct {
 	Lists       []List
 	CurrentList List
 	Items       []Item
+	MemoryItems []MemoryItem
 	ShowManager bool
+	ShowMemory  bool
 }
 
 func main() {
@@ -94,6 +102,11 @@ func main() {
 
 	// Reordenar Listas
 	http.HandleFunc("/lists/reorder", protected(reorderListsHandler))
+
+	// Memória de Itens
+	http.HandleFunc("/memory/", protected(memoryViewHandler))
+	http.HandleFunc("/memory/edit/", protected(editMemoryItemHandler))
+	http.HandleFunc("/memory/delete/", protected(deleteMemoryItemHandler))
 
 	port := os.Getenv("PORT")
 	if port == "" {
@@ -428,6 +441,64 @@ func getDataForList(listID int) PageData {
 		}
 	}
 	return PageData{Lists: lists, CurrentList: currentList, Items: items, ShowManager: false}
+}
+
+func getMemoryItems(listID int) []MemoryItem {
+	var items []MemoryItem
+	rows, err := db.Query("SELECT id, list_id, name FROM item_memory WHERE list_id = ? ORDER BY name ASC", listID)
+	if err != nil {
+		return items
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var m MemoryItem
+		rows.Scan(&m.ID, &m.ListID, &m.Name)
+		items = append(items, m)
+	}
+	return items
+}
+
+func memoryViewHandler(w http.ResponseWriter, r *http.Request) {
+	idStr := strings.TrimPrefix(r.URL.Path, "/memory/")
+	listID, _ := strconv.Atoi(idStr)
+	data := getDataForList(listID)
+	data.MemoryItems = getMemoryItems(listID)
+	data.ShowMemory = true
+	renderView(w, data)
+}
+
+func editMemoryItemHandler(w http.ResponseWriter, r *http.Request) {
+	idStr := strings.TrimPrefix(r.URL.Path, "/memory/edit/")
+	id, _ := strconv.Atoi(idStr)
+	newName := strings.TrimSpace(r.FormValue("name"))
+	if newName == "" {
+		return
+	}
+	var listID int
+	db.QueryRow("SELECT list_id FROM item_memory WHERE id = ?", id).Scan(&listID)
+	var exists int
+	db.QueryRow("SELECT COUNT(*) FROM item_memory WHERE list_id = ? AND LOWER(name) = LOWER(?) AND id != ?", listID, newName, id).Scan(&exists)
+	if exists == 0 {
+		db.Exec("UPDATE item_memory SET name = ? WHERE id = ?", newName, id)
+	}
+	data := getDataForList(listID)
+	data.MemoryItems = getMemoryItems(listID)
+	data.ShowMemory = true
+	tmpl, _ := template.ParseFS(views, "views/index.html")
+	tmpl.ExecuteTemplate(w, "memory-partial", data)
+}
+
+func deleteMemoryItemHandler(w http.ResponseWriter, r *http.Request) {
+	idStr := strings.TrimPrefix(r.URL.Path, "/memory/delete/")
+	id, _ := strconv.Atoi(idStr)
+	var listID int
+	db.QueryRow("SELECT list_id FROM item_memory WHERE id = ?", id).Scan(&listID)
+	db.Exec("DELETE FROM item_memory WHERE id = ?", id)
+	data := getDataForList(listID)
+	data.MemoryItems = getMemoryItems(listID)
+	data.ShowMemory = true
+	tmpl, _ := template.ParseFS(views, "views/index.html")
+	tmpl.ExecuteTemplate(w, "memory-partial", data)
 }
 
 func renderView(w http.ResponseWriter, data PageData) {

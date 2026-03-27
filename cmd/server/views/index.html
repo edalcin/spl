@@ -230,6 +230,44 @@
             transform: scale(0.95);
         }
 
+        /* === Gerenciar Memória === */
+        .memory-item-row {
+            display: flex;
+            align-items: center;
+            padding: 0.6rem 0;
+            border-bottom: 1px solid var(--muted-border);
+            gap: 0.5rem;
+        }
+        .memory-name {
+            flex-grow: 1;
+            font-size: 1.1rem;
+            cursor: pointer;
+            padding: 0.3rem 0;
+        }
+        .memory-name:hover { color: var(--primary); }
+        .memory-item-edit-form {
+            display: flex;
+            gap: 0.5rem;
+            flex-grow: 1;
+            align-items: center;
+        }
+        .memory-item-edit-form input { margin-bottom: 0; }
+        .memory-item-edit-form button {
+            width: auto;
+            margin-bottom: 0;
+            padding: 0.5rem 0.7rem;
+            min-width: 44px;
+            min-height: 44px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .memory-count {
+            font-size: 0.85rem;
+            color: var(--muted-color);
+            margin-left: 0.3rem;
+        }
+
         /* === Feedback tátil global === */
         button:active, a:active, summary:active {
             opacity: 0.85;
@@ -289,7 +327,7 @@
         <ul>
             <li>
                 <!-- Dropdown de Seleção de Lista -->
-                {{ if not .ShowManager }}
+                {{ if and (not .ShowManager) (not .ShowMemory) }}
                 <details role="list" dir="rtl">
                     <summary aria-haspopup="listbox" role="button" class="outline">
                         {{ if .CurrentList.ID }}{{ .CurrentList.Name }}{{ else }}Selecionar...{{ end }}
@@ -310,7 +348,26 @@
     <main class="container">
         <!-- Conteúdo Principal -->
         <section>
-            {{ if .ShowManager }}
+            {{ if .ShowMemory }}
+                <!-- Tela de Gestão de Memória -->
+                <hgroup>
+                    <h1>Memória da Lista</h1>
+                    <h2>{{ .CurrentList.Name }} <span class="memory-count">({{ len .MemoryItems }} itens)</span></h2>
+                </hgroup>
+
+                <p style="color: var(--muted-color); font-size: 0.9rem;">
+                    Estes itens aparecem como sugestões ao adicionar novos itens à lista. Clique no nome para editar.
+                </p>
+
+                <div id="memory-container">
+                    {{ template "memory-partial" . }}
+                </div>
+
+                <p style="margin-top: 2rem; text-align: center;">
+                    <a href="/manage">← Voltar para Gerenciar Listas</a>
+                </p>
+
+            {{ else if .ShowManager }}
                 <!-- Tela de Gestão de Listas -->
                 <hgroup>
                     <h1>Gerenciar Listas</h1>
@@ -339,6 +396,7 @@
                                 <button type="submit" class="outline secondary">💾</button>
                             </div>
                         </form>
+                        <a href="/memory/{{.ID}}" role="button" class="outline secondary" style="margin-bottom: 0; padding: 0.5rem 0.7rem; min-width: 44px; min-height: 44px; display: flex; align-items: center; justify-content: center; text-decoration: none; white-space: nowrap;" title="Gerenciar memória da lista">🧠</a>
                         <div class="list-delete-btn">
                             <form action="/lists/delete/{{.ID}}" method="POST" style="margin-bottom: 0;" onsubmit="return confirm('Apagar lista {{.Name}}?');">
                                 <button type="submit" class="outline contrast">🗑️</button>
@@ -386,6 +444,42 @@
 
     <!-- Overlay para fechar dropdowns no mobile -->
     <div class="dropdown-overlay" id="dropdown-overlay"></div>
+
+    <!-- Template Parcial de Memória -->
+    {{ define "memory-partial" }}
+        {{ range .MemoryItems }}
+        <div class="memory-item-row" id="memory-{{ .ID }}">
+            <!-- Nome (Clique para Editar) -->
+            <span class="memory-name"
+                  onclick="this.style.display='none'; document.getElementById('mem-edit-{{ .ID }}').style.display='flex';">
+                {{ .Name }}
+            </span>
+
+            <!-- Formulário de Edição (Inicialmente Escondido) -->
+            <form class="memory-item-edit-form"
+                  id="mem-edit-{{ .ID }}"
+                  style="display: none;"
+                  hx-post="/memory/edit/{{ .ID }}"
+                  hx-target="#memory-container">
+                <input type="text" name="name" value="{{ .Name }}" required>
+                <button type="submit" class="outline secondary">💾</button>
+                <button type="button" class="outline contrast"
+                        onclick="this.parentElement.style.display='none'; document.getElementById('memory-{{ .ID }}').querySelector('.memory-name').style.display='';">
+                    ✕
+                </button>
+            </form>
+
+            <!-- Botão de Deletar -->
+            <button class="delete-btn"
+                    hx-delete="/memory/delete/{{ .ID }}"
+                    hx-target="#memory-container">
+                🗑️
+            </button>
+        </div>
+        {{ else }}
+        <p style="text-align: center; color: #888; margin-top: 2rem;">Nenhum item na memória 📭</p>
+        {{ end }}
+    {{ end }}
 
     <!-- Template Parcial de Itens -->
     {{ define "items-partial" }}
