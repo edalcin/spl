@@ -230,6 +230,11 @@ func initDB() {
 	// Initialize positions for existing rows that have position=0
 	db.Exec(`UPDATE items SET position = id WHERE position = 0`)
 	db.Exec(`UPDATE lists SET position = id WHERE position = 0`)
+	// Dedup existing rows, then enforce uniqueness at DB level
+	db.Exec(`DELETE FROM item_memory WHERE id NOT IN (
+		SELECT MIN(id) FROM item_memory GROUP BY list_id, LOWER(name)
+	)`)
+	db.Exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_item_memory_unique ON item_memory (list_id, LOWER(name))`)
 
 	var count int
 	db.QueryRow("SELECT COUNT(*) FROM lists").Scan(&count)
@@ -307,7 +312,7 @@ func addItemHandler(w http.ResponseWriter, r *http.Request) {
 		var minPos int
 		db.QueryRow("SELECT COALESCE(MIN(position), 1) FROM items WHERE list_id = ?", listID).Scan(&minPos)
 		db.Exec("INSERT INTO items (list_id, name, completed, position) VALUES (?, ?, ?, ?)", listID, name, false, minPos-1)
-		db.Exec("DELETE FROM item_memory WHERE list_id = ? AND name = ?", listID, name)
+		db.Exec("DELETE FROM item_memory WHERE list_id = ? AND LOWER(name) = LOWER(?)", listID, name)
 	}
 	tmpl, _ := template.ParseFS(views, "views/index.html")
 	tmpl.ExecuteTemplate(w, "items-partial", getDataForList(listID))
@@ -332,11 +337,7 @@ func deleteItemHandler(w http.ResponseWriter, r *http.Request) {
 	var listID int
 	var name string
 	db.QueryRow("SELECT list_id, name FROM items WHERE id = ?", id).Scan(&listID, &name)
-	var exists int
-	db.QueryRow("SELECT COUNT(*) FROM item_memory WHERE list_id = ? AND name = ?", listID, name).Scan(&exists)
-	if exists == 0 {
-		db.Exec("INSERT INTO item_memory (list_id, name) VALUES (?, ?)", listID, name)
-	}
+	db.Exec("INSERT OR IGNORE INTO item_memory (list_id, name) VALUES (?, ?)", listID, name)
 	db.Exec("DELETE FROM items WHERE id = ?", id)
 	tmpl, _ := template.ParseFS(views, "views/index.html")
 	tmpl.ExecuteTemplate(w, "items-partial", getDataForList(listID))
